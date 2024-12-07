@@ -88,61 +88,6 @@ def onboard_page(wallet_page, seed, password, context, ads_id):
         # //*[@id="root"]/div/div/button
         new_wallet_page.close()
 
-def onboard_page_second_wallet(wallet_page, seed, password, context, ads_id):
-    time.sleep(.5)
-    try:
-        expect(wallet_page.get_by_placeholder('Enter the Password to Unlock'))
-    except Error:
-        try:
-            wallet_page.reload()
-            expect(wallet_page.get_by_placeholder('Enter the Password to Unlock'))
-        except Error:
-            print(ads_id, '   fail')
-            return
-
-
-    password_field = wallet_page.get_by_placeholder("Enter the Password to Unlock")
-    if password_field.is_visible():
-        password_field.fill(password)
-        wallet_page.locator('//button[@type="submit"]').click()
-        time.sleep(4)
-        if wallet_page.get_by_text("What's new").is_visible():
-            wallet_page.locator('//button[@aria-label="Close"]').click()
-
-
-        seed_phrase_1 = wallet_page.get_by_text('Seed Phrase 1').first
-        seed_phrase_1_1 = wallet_page.get_by_text('Seed Phrase 1 #1').first
-        if seed_phrase_1.is_visible():
-            wallet_page.get_by_text('Seed Phrase 1').first.click()
-        # if seed_phrase_1_1.is_visible():
-        #     wallet_page.get_by_text('Seed Phrase 1 #1').first.click()
-        time.sleep(.5)
-
-        if (wallet_page.get_by_text('Seed Phrase 2 #1').first.is_visible() or
-            wallet_page.get_by_text('Seed Phrase 2').first.is_visible()):
-
-            print(ads_id, '  already done')
-            wallet_page.close()
-            return
-
-        wallet_page.locator('//div[@class="header-content"]/div').first.click() # //*[@id="root"]/div/div[1]/div/div[1]
-        time.sleep(.5)
-        with context.expect_page() as new_wallet_page_info:
-            wallet_page.get_by_text('Import Seed Phrase').click()
-            time.sleep(.5)
-        new_wallet_page = new_wallet_page_info.value
-        new_wallet_page.locator('//input[@type="password"]').first.fill(seed)
-        time.sleep(.5)
-        new_wallet_page.get_by_text('Confirm').click()
-        new_wallet_page.locator(
-            '//*[@id="rc-tabs-0-panel-hd"]/div/div/div/div/div/div[2]/table/tbody/tr[2]/td[1]/button').click()
-        time.sleep(.5)
-        new_wallet_page.get_by_text('Done').click()
-        new_wallet_page.close()
-
-    else:
-        print(ads_id, '   fail password')
-
 def main(zero, ads_id, seed, password):
     try:
         args1 = ["--disable-popup-blocking", "--window-position=700,0"]
@@ -171,17 +116,12 @@ def main(zero, ads_id, seed, password):
             context = browser.contexts[0]
             wallet_page = context.new_page()
             wallet_page.bring_to_front()
-            wallet_page.set_viewport_size({"width": 1200, "height": 1000})
-            time.sleep(7)
+            time.sleep(1)
             wallet_page.goto(url)
-            time.sleep(2)
+            time.sleep(1)
 
             try:
-                if second_wallet_mode == 0:
-                    onboard_page(wallet_page, seed, password, context, ads_id)
-                if second_wallet_mode == 1:
-                    onboard_page_second_wallet(wallet_page, seed, password, context, ads_id)
-
+                onboard_page(wallet_page, seed, password, context, ads_id)
             except TimeoutError as e:
                     print(ads_id, '  fail')
                     requests.get(close_url)
@@ -202,22 +142,14 @@ if __name__ == '__main__':
     line_control("../rabby/id_users.txt")
     line_control("../rabby/seeds.txt")
 
-    with open("id_users.txt", "r") as f:
+    with open("id_users_evm.txt", "r") as f:
         id_users = [row.strip() for row in f]
 
-    with open("seeds.txt", "r") as f:
+    with open("seeds_evm.txt", "r") as f:
         seeds = [row.strip() for row in f]
 
-
-
-    # ===========================================Settings===============================================================
-    # Change the metamask password here
+    # Set your password
     password = '12345678'
-
-    # 0 - Enter first seed into an empty extension
-    # 1 - Add second seed phrase to a non-empty extension
-    second_wallet_mode = 0
-    # ==================================================================================================================
 
     for i, ads_id in enumerate(id_users):
         try:

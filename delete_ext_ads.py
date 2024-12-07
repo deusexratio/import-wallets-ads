@@ -24,5 +24,3 @@ for folder_name in os.listdir(base_dir):
             print(f'Ошибка при удалении {target_folder}: {e}')
     else:
         print(f'Папка {target_folder} не найдена.')
-
-

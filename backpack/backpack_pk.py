@@ -110,21 +110,11 @@ if __name__ == '__main__':
     with open("private_keys.txt", "r") as f:
         private_keys = [row.strip() for row in f]
 
-    # ===========================================Settings===============================================================
-    # Change the metamask password here
-    password = '?vTDaP5Ww$Qiqwd'
-
-    # 0 - The unlock mode is disabled. If you need to replace some metamask wallets in your profiles.
-    # 1 - Enters the metamask wallet, using the password from the password variable.
-    # The variable in unlock mode - 1 is designed to prepare profiles for operation, in this value the profiles
-    # will NOT be closed automatically!
-    unlock_mode = 0
-    # ==================================================================================================================
+    # Set your password
+    password = '12345678'
 
     for i, ads_id in enumerate(id_users):
         try:
-            if unlock_mode == 1:
-                private_keys.append('blank')
             main(i, ads_id, private_keys[i], password)
             time.sleep(5)
         except IndexError as ex:
