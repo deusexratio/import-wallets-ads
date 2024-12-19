@@ -43,9 +43,12 @@ def onboard_page(wallet_page, seed, password):
         # Finish
         for _ in range(5):
             wallet_page.locator('#__plasmo > main > div.flex-1.flex.flex-col > div:nth-child(2) > button').first.click()
-            wallet_page.wait_for_selector("text='Wallet 1'", timeout=5000)
-            if wallet_page.locator("text='Wallet 1'").is_visible():
-                break
+            try:
+                wallet_page.wait_for_selector("text='Wallet 1'", timeout=5000)
+                if wallet_page.locator("text='Wallet 1'").is_visible():
+                    break
+            except:
+                continue
         else:
             print(ads_id, "не смог завершить импорт")
 
