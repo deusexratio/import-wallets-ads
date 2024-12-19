@@ -17,6 +17,8 @@ def line_control(file_txt):
 
 def onboard_page(wallet_page, seed, password):
     try:
+        # wallet_page.wait_for_selector("text='Wallet 1'", timeout=5000)
+
         wallet_page.get_by_text('Import Existing Wallet').click()
         # wallet_page.locator("//*[@id='root']/main/div[2]/div/div[2]/button[2]").click()
         time.sleep(.5)
@@ -37,7 +39,15 @@ def onboard_page(wallet_page, seed, password):
         for seed in seeds_:
             wallet_page.locator(f'//*[@id="__plasmo"]/main/div[2]/div[1]/div/div[2]/div/div[{i_}]/div/input').fill(seed)
             i_ += 1
-        wallet_page.get_by_text('Import').first.click()
+
+        # Finish
+        for _ in range(5):
+            wallet_page.locator('#__plasmo > main > div.flex-1.flex.flex-col > div:nth-child(2) > button').first.click()
+            wallet_page.wait_for_selector("text='Wallet 1'", timeout=5000)
+            if wallet_page.locator("text='Wallet 1'").is_visible():
+                break
+        else:
+            print(ads_id, "не смог завершить импорт")
 
         wallet_page.close()
 
