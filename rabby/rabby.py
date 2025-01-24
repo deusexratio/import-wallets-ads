@@ -1,6 +1,7 @@
+import asyncio
+
 import requests, time, sys
-# from playwright.async_api import async_playwright, expect
-from playwright.sync_api import sync_playwright, expect
+from playwright.async_api import async_playwright, expect
 from playwright._impl._errors import TimeoutError, Error, TargetClosedError
 from termcolor import cprint
 import traceback
@@ -14,121 +15,79 @@ def line_control(file_txt):
             n_f1.writelines(non_empty_lines)
 
 
-def onboard_page(wallet_page, seed, password, context, ads_id):
-    time.sleep(1)
+async def onboard_page(rabby_page, seed, password, context, ads_id):
+    await rabby_page.bring_to_front()
+
+    # if await rabby_page.get_by_text('Gwei').is_visible(timeout=3000)
+
+    await rabby_page.get_by_text('I already have an address').click(timeout=3000)
+
+    await rabby_page.get_by_text('Seed Phrase').click(timeout=3000)
+
+    await rabby_page.locator('//input').first.fill(seed)
+
+    await asyncio.sleep(1)
+
+    # confirm_button = rabby_page.get_by_text('Confirm')
+    confirm_button = rabby_page.locator('//button').last
+    await confirm_button.click(timeout=3000)
+
+    await rabby_page.get_by_placeholder("8 characters min").fill(password)
+    await rabby_page.get_by_placeholder("Password").fill(password)
+
+    await asyncio.sleep(1)
     try:
-        expect(wallet_page.locator('//button[@type="button"]'))
-    except Error:
-        wallet_page.close()
-        print(ads_id, '   fail at first page')
-        return
+        await confirm_button.click(timeout=3000)
+    except TargetClosedError:
+        print(f"{ads_id} already recovered")
 
-    password_field = wallet_page.get_by_placeholder("Enter the Password to Unlock")
-    if password_field.is_visible():
-        password_field.fill(password)
-        wallet_page.locator('//button[@type="submit"]').click()
-        time.sleep(.5)
-        if wallet_page.get_by_text('Seed Phrase 1').first.is_visible():
-            wallet_page.close()
-            print(ads_id, '  already done')
-            return
+    await rabby_page.get_by_text("Get Started").click(timeout=3000)
 
-        # Клик на "Import Seed Phrase" Import Seed Phrase //*[@id="root"]/div/div[3]/div[2]/div[1]/div
-        with context.expect_page() as new_wallet_page_info:
-            wallet_page.locator("//div[text()='Import Seed Phrase']").click()
-        time.sleep(.5)
-        new_wallet_page = new_wallet_page_info.value
+    await expect(rabby_page.get_by_text('Rabby Wallet is Ready to Use')).to_be_visible(timeout=5000)
+    print(ads_id, 'done')
 
-        new_wallet_page.locator('//input[@type="password"]').first.fill(seed)
-        time.sleep(.5)
-        new_wallet_page.get_by_text('Confirm').click()
-            # //button[@type='submit']
-
-        new_wallet_page.locator(
-                '//*[@id="rc-tabs-0-panel-hd"]/div/div/div/div/div/div[2]/table/tbody/tr[2]/td[1]/button').click()
-        time.sleep(.5)
-        new_wallet_page.get_by_text('Done').click()
-
-    else:
-        # Клик на "Next"
-        wallet_page.locator('//button[@type="button"]').click()
-        time.sleep(.5)
-
-        # Клик на "Get started"
-        wallet_page.locator('//button[@type="button"]').click()
-        time.sleep(.5)
-
-        # Клик на "Import Seed Phrase" Import Seed Phrase //*[@id="root"]/div/div[3]/div[2]/div[1]/div
-        wallet_page.locator("//div[text()='Import Seed Phrase']").click()
-        time.sleep(.5)
-
-        # Вводим password
-        wallet_page.get_by_placeholder('Password must be at least 8 characters long').fill(password)
-        wallet_page.get_by_placeholder('Confirm password').fill(password)
-        time.sleep(.5)
-
-        # Клик на "Import Seed Phrase" Import Seed Phrase //*[@id="root"]/div/div[3]/div[2]/div[1]/div
-        with context.expect_page() as new_wallet_page_info:
-            wallet_page.get_by_text('Next').click() # //*[@id="root"]/div/div/div/form/div[3]/button # //button[@type='submit']
-        new_wallet_page = new_wallet_page_info.value
-
-        # Enter seed
-        # wallet_page.locator("//input[@type='password']").fill(seed)
-        new_wallet_page.locator('//input[@type="password"]').first.fill(seed)
-        time.sleep(.5)
-        new_wallet_page.get_by_text('Confirm').click()
-        # //button[@type='submit']
-
-        # new_wallet_page.locator(
-        #     '//*[@id="rc-tabs-0-panel-hd"]/div/div/div/div/div/div[2]/table/tbody/tr[2]/td[1]/button').click()
-        # new_wallet_page.locator('//button[@role="switch"]').first.click()
-        new_wallet_page.get_by_role('switch').first.click()
-        time.sleep(1.5)
-        new_wallet_page.get_by_text('Done').click()
-        # //*[@id="root"]/div/div/button
-        new_wallet_page.close()
-
-def main(zero, ads_id, seed, password):
+async def task(zero, ads_id, seed, password, semaphore):
     try:
-        args1 = ["--disable-popup-blocking", "--window-position=700,0"]
-        args1 = str(args1).replace("'", '"')
+        async with semaphore:
+            args1 = ["--disable-popup-blocking", "--window-position=700,0"]
+            args1 = str(args1).replace("'", '"')
 
-        open_url = f"http://local.adspower.net:50325/api/v1/browser/start?user_id=" + ads_id + f"&launch_args={str(args1)}"
-        close_url = "http://local.adspower.net:50325/api/v1/browser/stop?user_id=" + ads_id
-
-        try:
-            # Отправка запроса на открытие профиля
-            resp = requests.get(open_url).json()
-            time.sleep(.5)
-        except requests.exceptions.ConnectionError:
-            cprint(f'Adspower is not running.', 'red')
-            sys.exit(0)
-        except requests.exceptions.JSONDecodeError:
-            cprint(f'Проверьте ваше подключение. Отключите VPN/Proxy используемые напрямую.', 'red')
-            sys.exit(0)
-        except KeyError:
-            resp = requests.get(open_url).json()
-
-        with sync_playwright() as p:
-            browser = p.chromium.connect_over_cdp(resp["data"]["ws"]["puppeteer"])
-            url = 'chrome-extension://acmacodkjbdgmoleebolmdjonilkdbch/index.html'
-
-            context = browser.contexts[0]
-            wallet_page = context.new_page()
-            wallet_page.bring_to_front()
-            time.sleep(1)
-            wallet_page.goto(url)
-            time.sleep(1)
+            open_url = f"http://local.adspower.net:50325/api/v1/browser/start?user_id=" + ads_id + f"&launch_args={str(args1)}"
+            close_url = "http://local.adspower.net:50325/api/v1/browser/stop?user_id=" + ads_id
 
             try:
-                onboard_page(wallet_page, seed, password, context, ads_id)
-            except TimeoutError as e:
-                    print(ads_id, '  fail')
-                    requests.get(close_url)
-                    return
+                # Отправка запроса на открытие профиля
+                resp = requests.get(open_url).json()
+                time.sleep(.5)
+            except requests.exceptions.ConnectionError:
+                cprint(f'Adspower is not running.', 'red')
+                sys.exit(0)
+            except requests.exceptions.JSONDecodeError:
+                cprint(f'Проверьте ваше подключение. Отключите VPN/Proxy используемые напрямую.', 'red')
+                sys.exit(0)
+            except KeyError:
+                resp = requests.get(open_url).json()
 
-        requests.get(close_url)
-        cprint(f'{zero + 1}. {ads_id} - done', 'green')
+            async with async_playwright() as p:
+                browser = await p.chromium.connect_over_cdp(resp["data"]["ws"]["puppeteer"])
+                url = 'chrome-extension://acmacodkjbdgmoleebolmdjonilkdbch/index.html#/new-user/guide'
+
+                context = browser.contexts[0]
+                wallet_page = await context.new_page()
+                await wallet_page.bring_to_front()
+                await asyncio.sleep(1)
+                await wallet_page.goto(url)
+                await asyncio.sleep(1)
+
+                try:
+                    await onboard_page(wallet_page, seed, password, context, ads_id)
+                except TimeoutError as e:
+                        print(ads_id, '  fail')
+                        requests.get(close_url)
+                        return
+
+            requests.get(close_url)
+            cprint(f'{zero + 1}. {ads_id} - done', 'green')
 
     except Exception as ex:
         traceback.print_exc()
@@ -137,26 +96,29 @@ def main(zero, ads_id, seed, password):
         requests.get(close_url)
 
 
-if __name__ == '__main__':
+async def main():
+    line_control("id_users.txt")
+    line_control("seeds.txt")
 
-    line_control("../rabby/id_users.txt")
-    line_control("../rabby/seeds.txt")
-
-    with open("id_users_evm.txt", "r") as f:
+    with open("id_users.txt", "r") as f:
         id_users = [row.strip() for row in f]
 
-    with open("seeds_evm.txt", "r") as f:
+    with open("seeds.txt", "r") as f:
         seeds = [row.strip() for row in f]
 
     # Set your password
     password = '12345678'
 
-    for i, ads_id in enumerate(id_users):
-        try:
-            main(i, ads_id, seeds[i], password)
-        except IndexError as ex:
-            cprint(f'\nCheck the correspondence of the number of seed phrases with '
-                   f'the number of profiles in the files id_users.txt and seeds.txt', 'red')
-            sys.exit(0)
-        except Exception as ex:
-            cprint(str(ex), 'red')
+    # How many threads
+    threads = 3
+
+    semaphore = asyncio.Semaphore(threads)
+    tasks = [asyncio.create_task(task(i, ads_id, seeds[i], password, semaphore)) for i, ads_id in enumerate(id_users)]
+
+    print(f"Starting {len(tasks)} tasks")
+    await asyncio.wait(tasks)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
